@@ -1,6 +1,6 @@
-From 404e4e218e752a92477563902a730ec72a2f2795 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 10:10:57 +0000
+From c4c47ec54f8a3e8465617487728b236bcf0c9292 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix console suggesting commands inside quoted arguments
 
 Typing a double quote in the local or remote console, e.g.

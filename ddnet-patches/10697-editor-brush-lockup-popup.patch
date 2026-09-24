@@ -1,6 +1,6 @@
-From 56f694e3d91d2597e6094b71e58ffc292e8a61d0 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 10:07:13 +0000
+From fdd7fde36414dd0cd7e0297956b0fa19298ca54e Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix editor brush locking up when opening a dialog while
  drawing
 

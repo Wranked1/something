@@ -1,6 +1,6 @@
-From 9ff9230812c09e73ec11e6d10f09cb3393388518 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:56:44 +0000
+From 58914218b6b07ec58b95db2f1d24a7604fd250f4 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix invalid console height when toggling the console quickly
 
 Toggling the console again after its opening or closing animation had

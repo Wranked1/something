@@ -1,6 +1,6 @@
-From ea3cafafc94c47729ffcaa83e0bd8c76ad916c98 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:50:02 +0000
+From cf3ec27a40cd5c786e28ddcd337a6ec8300c6cbf Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix undefined behavior in HUD when seeking in demos
 
 When seeking in a demo, the HUD received an infinite intra tick and

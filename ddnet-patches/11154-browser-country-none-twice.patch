@@ -1,6 +1,6 @@
-From 8205abe60b8bd5543c4c9663316829bd3970ed87 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:51:31 +0000
+From 0b56dcb40f22b9b7c18187908d52bbb581254fe1 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:12 +0000
 Subject: [PATCH] Fix default flag shown twice in server browser countries
  filter
 

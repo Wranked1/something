@@ -1,6 +1,6 @@
-From bd9fcfd952eb5eceb65317ef64b54972b452d990 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:59:25 +0000
+From 7f0a7ddf852f78e58499943c6f9f06d3f9074f63 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:12 +0000
 Subject: [PATCH] Fix dummy rcon console suggesting wrong commands after main
  logout
 

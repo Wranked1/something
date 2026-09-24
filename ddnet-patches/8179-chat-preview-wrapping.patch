@@ -1,6 +1,6 @@
-From 9d6fccd6ff4cdc5650b73e739410a9181fe6efd8 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 10:20:27 +0000
+From 434a9b068d898451a8497b2ab360d223106ff8bd Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix chat preview message background not matching its text
 
 With some combinations of resolution, chat font size and chat width,

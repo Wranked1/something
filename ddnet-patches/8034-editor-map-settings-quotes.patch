@@ -1,6 +1,6 @@
-From 67e4448d4eb9e972012a2099329ebd56ef5f95d8 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:55:17 +0000
+From cbde7e9c84fa42664f1ed3b934a8fe1c11faa5c8 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix map settings with quoted arguments being invalid in
  editor
 

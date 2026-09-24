@@ -1,6 +1,6 @@
-From b836dfe2d93f91c4d1663c47d89f24d089a163a3 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 10:10:24 +0000
+From c42afd5b59766de40a0c490efb66fc6643d8ab2f Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:12 +0000
 Subject: [PATCH] Fix rank overlapping the tee in the bottom right score HUD
 
 In the small score HUD in the bottom right, ranks with two or more

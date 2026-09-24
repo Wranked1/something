@@ -1,6 +1,6 @@
-From 0314043c75d3dfcc2430981de280f29fb9532431 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 10:07:49 +0000
+From 16281e6f0b0882082909a0f9a03276b37af748a6 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Stop door preview in editor at walls and nolaser tiles like
  ingame
 

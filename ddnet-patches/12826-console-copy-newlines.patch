@@ -1,6 +1,6 @@
-From 7989aad0cd46d987486bf105c6502d6e73257774 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 10:02:08 +0000
+From c18feeaf4968e47cc68cac1873b0807fc5314c10 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix selecting and copying text of multi-line console entries
 
 Copying a selection with Ctrl+C from a console entry that contains line

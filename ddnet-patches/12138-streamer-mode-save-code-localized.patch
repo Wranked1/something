@@ -1,6 +1,6 @@
-From 5294b129708ce1df3a6c5dd971cb0a3e636cfc1e Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:38:49 +0000
+From ad85a99229da325a7f0860399a2fb25dff79ad6c Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:10 +0000
 Subject: [PATCH] Fix streamer mode not censoring save codes in other languages
 
 The pending and fallback save messages for the save code net message

@@ -1,6 +1,6 @@
-From 71ac33691fb38474d42143302027783f8259ad52 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:52:24 +0000
+From a7041e29ce08081d703650372dc442de0e61a58c Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix worker thread output in rcon and econ waiting for next
  log line
 

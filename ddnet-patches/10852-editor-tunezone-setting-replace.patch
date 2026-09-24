@@ -1,6 +1,6 @@
-From acbafe34c86625b10f17b3d902354bc320de2539 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:52:59 +0000
+From 2b818000b8b64239e947be1280992bcf8c6e8578 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:10 +0000
 Subject: [PATCH] Fix editor deleting other tune_zone settings when changing
  zone number
 

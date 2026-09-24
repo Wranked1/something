@@ -1,6 +1,6 @@
-From 048136a998771d6fbc75c3b086dc828e182d8b33 Mon Sep 17 00:00:00 2001
-From: wranked1 <wranked.1@gmail.com>
-Date: Thu, 24 Sep 2026 09:38:49 +0000
+From db89c7411dd5e3391da0ded38891014418c9e213 Mon Sep 17 00:00:00 2001
+From: Wranked1 <129415993+Wranked1@users.noreply.github.com>
+Date: Thu, 24 Sep 2026 11:01:11 +0000
 Subject: [PATCH] Fix existing input fifo being removed and recreated
 
 An existing fifo at the `sv_input_fifo`/`cl_input_fifo` path was always
