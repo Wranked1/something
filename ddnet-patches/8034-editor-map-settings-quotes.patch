@@ -1,0 +1,91 @@
+From 67e4448d4eb9e972012a2099329ebd56ef5f95d8 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 09:55:17 +0000
+Subject: [PATCH] Fix map settings with quoted arguments being invalid in
+ editor
+
+Map settings with quoted arguments, like `sv_team "2"` and
+`tune_zone "1" "ground_friction" "1"` in the map Samsara, were reported
+as invalid by the editor, although the server accepts them. Loading such
+a map opened the map settings error dialog, and typing such a setting in
+the server settings editor showed an "Invalid argument value" or
+"Unknown argument value" error.
+
+The map settings parser added in 9cc8a28305e6 ("Better map settings
+input (autocomplete, validation)") validated the argument value with its
+quotes still in it, as an int, a float or one of the possible values
+(tunings, map bugs), which always failed. The console removes the quotes
+and the backslash of the `\\` and `\"` escapes before it checks a value.
+
+Validate the argument value without its quotes and escape characters,
+like the console does. The stored argument value keeps the quotes, as it
+is used together with the argument offsets for autocompletion at the
+cursor. Unterminated quotes and text after the closing quote are still
+reported as invalid.
+
+Closes #8034.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/editor/editor_server_settings.cpp | 25 +++++++++++++++++++---
+ 1 file changed, 22 insertions(+), 3 deletions(-)
+
+diff --git a/src/game/editor/editor_server_settings.cpp b/src/game/editor/editor_server_settings.cpp
+index 1b70831b3..9d98d7fd7 100644
+--- a/src/game/editor/editor_server_settings.cpp
++++ b/src/game/editor/editor_server_settings.cpp
+@@ -1389,6 +1389,25 @@ void CMapSettingsBackend::CContext::ParseArgs(const char *pLineInputStr, const c
+ 		// Fill argument value, with a maximum length of 256
+ 		str_copy(NewArg.m_aValue, pArgStart, std::min(sizeof(SCurrentSettingArg::m_aValue), Length + 1));
+ 
++		// Remove the quotes and escape characters of a quoted argument before validating its value, like the console does
++		char aUnquotedValue[sizeof(SCurrentSettingArg::m_aValue)];
++		const char *pValue = NewArg.m_aValue;
++		if(Char == '"' && Valid)
++		{
++			const char *pSrc = NewArg.m_aValue + 1;
++			char *pDst = aUnquotedValue;
++			while(*pSrc != '\0' && *pSrc != '"')
++			{
++				if(pSrc[0] == '\\' && (pSrc[1] == '\\' || pSrc[1] == '"'))
++					pSrc++; // Skip escape character
++				*pDst = *pSrc;
++				pDst++;
++				pSrc++;
++			}
++			*pDst = '\0';
++			pValue = aUnquotedValue;
++		}
++
+ 		// Validate argument from the parsed argument of the current setting.
+ 		// If current setting is not valid, then there are no arguments which results in an error.
+ 
+@@ -1414,13 +1433,13 @@ void CMapSettingsBackend::CContext::ParseArgs(const char *pLineInputStr, const c
+ 			else if(Arg.m_Type == 'i')
+ 			{
+ 				// Validate int
+-				if(!str_toint(NewArg.m_aValue, nullptr))
++				if(!str_toint(pValue, nullptr))
+ 					Error = SCommandParseError::ERROR_INVALID_VALUE;
+ 			}
+ 			else if(Arg.m_Type == 'f')
+ 			{
+ 				// Validate float
+-				if(!str_tofloat(NewArg.m_aValue, nullptr))
++				if(!str_tofloat(pValue, nullptr))
+ 					Error = SCommandParseError::ERROR_INVALID_VALUE;
+ 			}
+ 			else if(Arg.m_Type == 's')
+@@ -1433,7 +1452,7 @@ void CMapSettingsBackend::CContext::ParseArgs(const char *pLineInputStr, const c
+ 			// Extended argument validation:
+ 			//   for int settings it checks that the value is in range
+ 			//   for command settings, it checks that the value is one of the possible values if there are any
+-			EValidationResult Result = ValidateArg(ArgIndex, NewArg.m_aValue);
++			EValidationResult Result = ValidateArg(ArgIndex, pValue);
+ 			if(Length && !Error && Result != EValidationResult::VALID)
+ 			{
+ 				if(Result == EValidationResult::ERROR)
+-- 
+2.43.0
+

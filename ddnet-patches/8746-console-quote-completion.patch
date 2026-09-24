@@ -1,0 +1,95 @@
+From 404e4e218e752a92477563902a730ec72a2f2795 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 10:10:57 +0000
+Subject: [PATCH] Fix console suggesting commands inside quoted arguments
+
+Typing a double quote in the local or remote console, e.g.
+`player_name "`, listed every command as completion suggestion and hid
+the help text of the command. Continuing to type, e.g. `say "fire`,
+suggested commands like `+fire` that Tab would insert into the string.
+
+Since 5d43d346e ("Also split commands on double quotes", #8352) the
+completion treats every quoted argument as a nested command, which is
+only intended for commands like `bind x "+fire"`.
+
+Now the input is not split on quotes if it starts with a known command
+whose parameters are not labelled `[command]`, unlike those of bind and
+add_vote. Quoted arguments of such commands are plain strings, so no
+commands are suggested and the help and usage of the command are shown
+instead. Other input is still split, e.g. `+j"` in `bind x "+fire;+j"`
+with the cursor before the closing quote, so chained commands inside a
+quoted bind are still completed.
+
+Closes #8746.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/client/components/console.cpp | 13 +++++++++++++
+ src/game/client/components/console.h   | 12 ++++++++++++
+ 2 files changed, 25 insertions(+)
+
+diff --git a/src/game/client/components/console.cpp b/src/game/client/components/console.cpp
+index 77e21c6f6..edbe2528e 100644
+--- a/src/game/client/components/console.cpp
++++ b/src/game/client/components/console.cpp
+@@ -476,6 +476,9 @@ void CGameConsole::CInstance::GetCommand(const char *pInput, char (&aCmd)[IConso
+ 	char aaSeparators[][2] = {";", "\""};
+ 	for(auto *pSeparator : aaSeparators)
+ 	{
++		// Quoted arguments of commands that do not take commands, e.g. say, are plain strings
++		if(pSeparator[0] == '"' && IsCommandWithoutCommandArgument(aInput + m_CompletionCommandStart))
++			break;
+ 		int Start, End;
+ 		str_delimiters_around_offset(aInput + m_CompletionCommandStart, pSeparator, m_Input.GetCursorOffset() - m_CompletionCommandStart, &Start, &End);
+ 		m_CompletionCommandStart += Start;
+@@ -487,6 +490,16 @@ void CGameConsole::CInstance::GetCommand(const char *pInput, char (&aCmd)[IConso
+ 	str_copy(aCmd, aInput + m_CompletionCommandStart);
+ }
+ 
++bool CGameConsole::CInstance::IsCommandWithoutCommandArgument(const char *pInput) const
++{
++	const char *pCommandStart = str_skip_whitespaces_const(pInput);
++	char aCommandName[IConsole::CMDLINE_LENGTH];
++	str_truncate(aCommandName, sizeof(aCommandName), pCommandStart, str_skip_to_whitespace_const(pCommandStart) - pCommandStart);
++	const bool UseTempCommands = m_Type == CGameConsole::CONSOLETYPE_REMOTE && m_pGameConsole->Client()->RconAuthed() && m_pGameConsole->Client()->UseTempRconCommands();
++	const IConsole::ICommandInfo *pCommand = m_pGameConsole->m_pConsole->GetCommandInfo(aCommandName, m_CompletionFlagmask, UseTempCommands);
++	return pCommand != nullptr && str_find(pCommand->Params(), "[command]") == nullptr;
++}
++
+ static void StrCopyUntilSpace(char *pDest, size_t DestSize, const char *pSrc)
+ {
+ 	const char *pSpace = str_find(pSrc, " ");
+diff --git a/src/game/client/components/console.h b/src/game/client/components/console.h
+index aa508ff12..ef6b3087e 100644
+--- a/src/game/client/components/console.h
++++ b/src/game/client/components/console.h
+@@ -129,6 +129,9 @@ class CGameConsole : public CComponent
+ 		 *                   and the cursor is here  -------------/
+ 		 * The result would be "world "
+ 		 *
++		 * Quoted arguments are also split, e.g. `bind x "+fire"`, unless the command is known
++		 * to not take commands as argument, e.g. `say "hello"`.
++		 *
+ 		 * @param pInput the console input line
+ 		 * @param aCmd the command the cursor is at
+ 		 */
+@@ -140,6 +143,15 @@ class CGameConsole : public CComponent
+ 		void UpdateCompletionSuggestions();
+ 
+ 	private:
++		/**
++		 * Checks whether the input starts with a known command that does not take commands as argument, e.g. say.
++		 *
++		 * @param pInput the console input starting with a command
++		 *
++		 * @return `true` if the command is known and does not take commands as argument, `false` otherwise.
++		 */
++		bool IsCommandWithoutCommandArgument(const char *pInput) const;
++
+ 		void SetSearching(bool Searching);
+ 		void ClearSearch();
+ 		void UpdateSearch();
+-- 
+2.43.0
+

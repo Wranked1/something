@@ -1,0 +1,47 @@
+From acbafe34c86625b10f17b3d902354bc320de2539 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 09:52:59 +0000
+Subject: [PATCH] Fix editor deleting other tune_zone settings when changing
+ zone number
+
+In the server settings editor, selecting the setting
+"tune_zone 2 player_collision 0" and updating it to
+"tune_zone 1 player_collision 0" silently deleted an unrelated
+"tune_zone 1 gravity 0" setting.
+
+For command settings, CheckCollision only reports a collision (REPLACE)
+when an argument with a UNIQUE constraint matches, but when the result
+was ADD it still returned the index of the last line that matched a
+non-unique argument (here the zone number). The Update button treats
+any index other than -1 as a colliding line and, unless it is the
+selected line, deletes it. This dates back to the introduction of the
+collision check in commit 9cc8a28305e6.
+
+Return -1 when there is no collision, as the function's comment already
+documents, so the selected setting is edited in place. Other callers
+only act on the index for REPLACE results.
+
+Closes #10852.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/editor/editor_server_settings.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/game/editor/editor_server_settings.cpp b/src/game/editor/editor_server_settings.cpp
+index 1b70831b3..c863fe0a6 100644
+--- a/src/game/editor/editor_server_settings.cpp
++++ b/src/game/editor/editor_server_settings.cpp
+@@ -2026,7 +2026,7 @@ int CMapSettingsBackend::CContext::CheckCollision(const char *pInputString, cons
+ 
+ 		// The result is either REPLACE when we found a collision, or ADD
+ 		Result = Error ? ECollisionCheckResult::REPLACE : ECollisionCheckResult::ADD;
+-		return CollidingLineIndex;
++		return Error ? CollidingLineIndex : -1;
+ 	}
+ 
+ 	return -1;
+-- 
+2.43.0
+

@@ -1,0 +1,49 @@
+From 9d6fccd6ff4cdc5650b73e739410a9181fe6efd8 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 10:20:27 +0000
+Subject: [PATCH] Fix chat preview message background not matching its text
+
+With some combinations of resolution, chat font size and chat width,
+a message background in the chat settings preview was sized as if the
+text wrapped to a second line although the text was rendered on a
+single line (or vice versa), which also shifted all following
+backgrounds. For example at 1920x1080 with font size 100 and width 263
+the "Spammer" line got a two line background.
+
+Since fee9b986f the preview measures each message for its background
+by laying out the text at position (0, 0), but renders the text at the
+actual preview position. The text renderer aligns the start of the
+text to the screen pixel grid while the line width is compared against
+the unaligned start position, so line wrapping and the measured width
+depend on the position by up to a fraction of a pixel. A word that
+ends right at the line width limit can then wrap in the measurement
+but not when rendering.
+
+Measure the message at the same position that it is rendered at, so
+the background always matches the rendered text. The ingame chat
+already measures at the same x position that it renders at.
+
+Closes #8179.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/client/components/menus_settings_appearance.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/game/client/components/menus_settings_appearance.cpp b/src/game/client/components/menus_settings_appearance.cpp
+index 8b67015cc..b5a334674 100644
+--- a/src/game/client/components/menus_settings_appearance.cpp
++++ b/src/game/client/components/menus_settings_appearance.cpp
+@@ -436,7 +436,7 @@ void CMenus::RenderSettingsAppearance(CUIRect MainView)
+ 			const float RealBackgroundRounding = Chat.MessageRounding() * 2.0f;
+ 
+ 			auto &&RenderMessageBackground = [&](int LineIndex) {
+-				auto Size = RenderPreview(LineIndex, 0, 0, false);
++				auto Size = RenderPreview(LineIndex, X, TempY, false);
+ 				Graphics()->DrawRectExt(X - RealMsgPaddingX / 2.0f, TempY - RealMsgPaddingY / 2.0f, Size.x + RealMsgPaddingX * 1.5f, Size.y, RealBackgroundRounding, IGraphics::CORNER_ALL);
+ 				return Size.y;
+ 			};
+-- 
+2.43.0
+

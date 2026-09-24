@@ -1,0 +1,71 @@
+From 4ff9bf77fdfad18f8eec562db859c476996b78ce Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 09:55:08 +0000
+Subject: [PATCH] Fix spectate menu labels overflowing with long translations
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+In the spectate menu, the Free-View, Multi-View and Follow labels were
+drawn at a fixed font size without any width limit. With 16 or fewer
+players their buttons are only 160 units wide and the labels start 20
+units inside, so longer translations ran past their button and into the
+next label, e.g. Polish "Widok wieloosobowy" collided with "Śledź" and
+Russian "Свободный обзор" extended past the Free-View button. The
+buttons became this narrow when d16fb877dc ("Add multi view") split the
+header into three.
+
+Render the labels with Ui()->DoLabel in the button rect with 20 units
+of padding on each side, matching the existing left inset, so the font
+size is reduced until a label fits. Labels that fit in this rect keep
+their size and horizontal position, e.g. in English or in the wider
+menu shown with more than 16 players.
+
+Closes #7079.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/client/components/spectator.cpp | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/src/game/client/components/spectator.cpp b/src/game/client/components/spectator.cpp
+index 32c13f74f..5a8304dd1 100644
+--- a/src/game/client/components/spectator.cpp
++++ b/src/game/client/components/spectator.cpp
+@@ -382,7 +382,9 @@ void CSpectator::OnRender()
+ 		}
+ 	}
+ 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, FreeViewSelected ? 1.0f : 0.5f);
+-	TextRender()->Text(Width / 2.0f - (ObjWidth - 40.0f), Height / 2.0f - 280.f + (60.f - BigFontSize) / 2.f, BigFontSize, Localize("Free-View"), -1.0f);
++	CUIRect FreeViewLabel = {Width / 2.0f - (ObjWidth - 20.0f), Height / 2.0f - 280.0f, ((ObjWidth * 2.0f) / 3.0f) - 40.0f, 60.0f};
++	FreeViewLabel.VMargin(20.0f, &FreeViewLabel);
++	Ui()->DoLabel(&FreeViewLabel, Localize("Free-View"), BigFontSize, TEXTALIGN_ML);
+ 
+ 	if(m_SelectorMouse.x >= -(ObjWidth - 20.0f) + (ObjWidth * 2.0f / 3.0f) && m_SelectorMouse.x <= -(ObjWidth - 20.0f) + (ObjWidth * 2.0f / 3.0f) + ((ObjWidth * 2.0f) / 3.0f) - 40.0f &&
+ 		m_SelectorMouse.y >= -280.0f && m_SelectorMouse.y <= -220.0f)
+@@ -395,7 +397,9 @@ void CSpectator::OnRender()
+ 		}
+ 	}
+ 	TextRender()->TextColor(1.0f, 1.0f, 1.0f, MultiViewSelected ? 1.0f : 0.5f);
+-	TextRender()->Text(Width / 2.0f - (ObjWidth - 40.0f) + (ObjWidth * 2.0f / 3.0f), Height / 2.0f - 280.f + (60.f - BigFontSize) / 2.f, BigFontSize, Localize("Multi-View"), -1.0f);
++	CUIRect MultiViewLabel = {Width / 2.0f - (ObjWidth - 20.0f) + (ObjWidth * 2.0f / 3.0f), Height / 2.0f - 280.0f, ((ObjWidth * 2.0f) / 3.0f) - 40.0f, 60.0f};
++	MultiViewLabel.VMargin(20.0f, &MultiViewLabel);
++	Ui()->DoLabel(&MultiViewLabel, Localize("Multi-View"), BigFontSize, TEXTALIGN_ML);
+ 
+ 	if(Client()->State() == IClient::STATE_DEMOPLAYBACK && GameClient()->m_Snap.m_LocalClientId >= 0)
+ 	{
+@@ -412,7 +416,9 @@ void CSpectator::OnRender()
+ 			}
+ 		}
+ 		TextRender()->TextColor(1.0f, 1.0f, 1.0f, FollowSelected ? 1.0f : 0.5f);
+-		TextRender()->Text(Width / 2.0f - (ObjWidth - 40.0f) + (ObjWidth * 2.0f * 2.0f / 3.0f), Height / 2.0f - 280.0f + (60.f - BigFontSize) / 2.f, BigFontSize, Localize("Follow"), -1.0f);
++		CUIRect FollowLabel = {Width / 2.0f - (ObjWidth - 20.0f) + (ObjWidth * 2.0f * 2.0f / 3.0f), Height / 2.0f - 280.0f, ((ObjWidth * 2.0f) / 3.0f) - 40.0f, 60.0f};
++		FollowLabel.VMargin(20.0f, &FollowLabel);
++		Ui()->DoLabel(&FollowLabel, Localize("Follow"), BigFontSize, TEXTALIGN_ML);
+ 	}
+ 
+ 	float x = -(ObjWidth - 35.0f), y = StartY;
+-- 
+2.43.0
+

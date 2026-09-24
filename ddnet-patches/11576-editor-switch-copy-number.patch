@@ -1,0 +1,73 @@
+From 6f9b0cfa10dd6c6157a8fe5e0b22d72841118f01 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 09:57:30 +0000
+Subject: [PATCH] Fix pasting switch tiles changing their switch number and
+ delay
+
+When a brush with several switch layer tiles was pasted in the editor,
+tiles with switch number 0 took the number and delay of the last switch
+tile in the brush wherever their type uses them. This gave door length
+tiles a switch number and changed the jump count of jump tiles and the
+weapon of hit enable/disable tiles, which are stored in the delay.
+Filling a selection with the brush (Shift+drag) likewise replaced every
+number or delay of 0.
+
+`CLayerTiles::BrushGrab` sets the editor switch number and delay to
+those of the last grabbed switch tile, and `CLayerSwitch::BrushDraw`
+and `CLayerSwitch::FillSelection` fell back to these values for brush
+tiles with number (or, when filling, delay) 0. Remove this fallback, so
+brush tiles keep their own number and delay. Tile picker brushes do not
+need it, as `BrushGrab` already gives their switch tiles the editor
+number and delay. Changing the number or delay in the switch popup
+still applies the new value to all tiles of the brush.
+
+Closes #11576.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/editor/mapitems/layer_switch.cpp | 11 +++--------
+ 1 file changed, 3 insertions(+), 8 deletions(-)
+
+diff --git a/src/game/editor/mapitems/layer_switch.cpp b/src/game/editor/mapitems/layer_switch.cpp
+index 848d44990..a57f4841b 100644
+--- a/src/game/editor/mapitems/layer_switch.cpp
++++ b/src/game/editor/mapitems/layer_switch.cpp
+@@ -122,16 +122,11 @@ void CLayerSwitch::BrushDraw(CLayer *pBrush, vec2 WorldPos)
+ 					m_pSwitchTile[TgtIndex].m_Number = Editor()->m_SwitchNumber;
+ 					m_pSwitchTile[TgtIndex].m_Delay = Editor()->m_SwitchDelay;
+ 				}
+-				else if(pSwitchLayer->m_pSwitchTile[SrcIndex].m_Number)
++				else
+ 				{
+ 					m_pSwitchTile[TgtIndex].m_Number = pSwitchLayer->m_pSwitchTile[SrcIndex].m_Number;
+ 					m_pSwitchTile[TgtIndex].m_Delay = pSwitchLayer->m_pSwitchTile[SrcIndex].m_Delay;
+ 				}
+-				else
+-				{
+-					m_pSwitchTile[TgtIndex].m_Number = Editor()->m_SwitchNumber;
+-					m_pSwitchTile[TgtIndex].m_Delay = Editor()->m_SwitchDelay;
+-				}
+ 
+ 				m_pSwitchTile[TgtIndex].m_Type = pSwitchLayer->m_pTiles[SrcIndex].m_Index;
+ 				m_pSwitchTile[TgtIndex].m_Flags = pSwitchLayer->m_pTiles[SrcIndex].m_Flags;
+@@ -292,14 +287,14 @@ void CLayerSwitch::FillSelection(bool Empty, CLayer *pBrush, CUIRect Rect)
+ 				{
+ 					if(!IsSwitchTileNumberUsed(m_pSwitchTile[TgtIndex].m_Type))
+ 						m_pSwitchTile[TgtIndex].m_Number = 0;
+-					else if(pLt->m_pSwitchTile[SrcIndex].m_Number == 0 || Editor()->m_SwitchNumber != pLt->m_SwitchNumber)
++					else if(Editor()->m_SwitchNumber != pLt->m_SwitchNumber)
+ 						m_pSwitchTile[TgtIndex].m_Number = Editor()->m_SwitchNumber;
+ 					else
+ 						m_pSwitchTile[TgtIndex].m_Number = pLt->m_pSwitchTile[SrcIndex].m_Number;
+ 
+ 					if(!IsSwitchTileDelayUsed(m_pSwitchTile[TgtIndex].m_Type))
+ 						m_pSwitchTile[TgtIndex].m_Delay = 0;
+-					else if(pLt->m_pSwitchTile[SrcIndex].m_Delay == 0 || Editor()->m_SwitchDelay != pLt->m_SwitchDelay)
++					else if(Editor()->m_SwitchDelay != pLt->m_SwitchDelay)
+ 						m_pSwitchTile[TgtIndex].m_Delay = Editor()->m_SwitchDelay;
+ 					else
+ 						m_pSwitchTile[TgtIndex].m_Delay = pLt->m_pSwitchTile[SrcIndex].m_Delay;
+-- 
+2.43.0
+

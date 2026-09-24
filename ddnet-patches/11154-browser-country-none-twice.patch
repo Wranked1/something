@@ -1,0 +1,94 @@
+From 8205abe60b8bd5543c4c9663316829bd3970ed87 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 09:51:31 +0000
+Subject: [PATCH] Fix default flag shown twice in server browser countries
+ filter
+
+The countries filter showed the default flag twice when the selected
+communities included both servers without community and a community
+with servers without country flag, e.g. KoG on the Internet tab. The
+two flags filtered different servers.
+
+Since f0e71219a servers without community use the placeholder country
+"none" with the default flag, but community servers without country
+flag keep the country name from the community info (currently "UNK").
+Selectable countries are only merged if name and flag match, so both
+entries were shown.
+
+Use the placeholder country name for community countries with the
+default flag, so these servers are shown and filtered together with the
+servers without community. Saved exclusions of the old country name are
+removed when the community info is loaded, like for any other unknown
+country.
+
+Since fa28ed77a left-clicking a country while all are active keeps the
+placeholder country active, so servers without community stay visible.
+Only do this if the none community is selected, otherwise left-clicking
+e.g. CHN with only ntcn selected would have no effect. If the none
+community is selected, e.g. on the Internet tab by default, this now
+also keeps community servers without country flag (e.g. KoG) visible.
+
+Closes #11154.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/engine/client/serverbrowser.cpp          |  5 ++++-
+ src/game/client/components/menus_browser.cpp | 11 +++++++++--
+ 2 files changed, 13 insertions(+), 3 deletions(-)
+
+diff --git a/src/engine/client/serverbrowser.cpp b/src/engine/client/serverbrowser.cpp
+index 931259002..ce8a53385 100644
+--- a/src/engine/client/serverbrowser.cpp
++++ b/src/engine/client/serverbrowser.cpp
+@@ -1463,7 +1463,10 @@ bool CServerBrowser::ParseCommunityServers(CCommunity *pCommunity, const json_va
+ 			log_error("serverbrowser", "invalid community country code (ServerIndex=%u)", ServerIndex);
+ 			return false;
+ 		}
+-		pCommunity->m_vCountries.emplace_back(Name.u.string.ptr, FlagId.u.integer);
++		// Community servers without country flag use the same placeholder country as servers
++		// without community, so the default flag is only shown once in the countries filter.
++		const char *pCountryName = FlagId.u.integer == CountryCode::DEFAULT ? COMMUNITY_COUNTRY_NONE : Name.u.string.ptr;
++		pCommunity->m_vCountries.emplace_back(pCountryName, FlagId.u.integer);
+ 		CCommunityCountry *pCountry = &pCommunity->m_vCountries.back();
+ 
+ 		for(unsigned TypeIndex = 0; TypeIndex < Types.u.object.length; ++TypeIndex)
+diff --git a/src/game/client/components/menus_browser.cpp b/src/game/client/components/menus_browser.cpp
+index 03c92c8a2..66f1bb2c3 100644
+--- a/src/game/client/components/menus_browser.cpp
++++ b/src/game/client/components/menus_browser.cpp
+@@ -876,6 +876,13 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
+ {
+ 	vItemIds.resize(MaxItems);
+ 
++	// The none country is kept active on left click to keep servers without community visible.
++	// Community servers without country flag also use it, so only do this if the none community is selected.
++	const std::vector<const CCommunity *> &vpSelectedCommunities = ServerBrowser()->CommunityCache().SelectedCommunities();
++	const bool NoneCommunitySelected = std::any_of(vpSelectedCommunities.begin(), vpSelectedCommunities.end(), [](const CCommunity *pCommunity) {
++		return str_comp(pCommunity->Id(), IServerBrowser::COMMUNITY_NONE) == 0;
++	});
++
+ 	CScrollRegionParams ScrollParams;
+ 	ScrollParams.m_ScrollbarThickness = 10.0f;
+ 	ScrollParams.m_ScrollbarMargin = 3.0f;
+@@ -911,7 +918,7 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
+ 					{
+ 						if(const char *pItemName = GetItemName(j);
+ 							j != ItemIndex &&
+-							!((&Filter == &ServerBrowser()->CountriesFilter() && str_comp(pItemName, IServerBrowser::COMMUNITY_COUNTRY_NONE) == 0) ||
++							!((&Filter == &ServerBrowser()->CountriesFilter() && NoneCommunitySelected && str_comp(pItemName, IServerBrowser::COMMUNITY_COUNTRY_NONE) == 0) ||
+ 								(&Filter == &ServerBrowser()->TypesFilter() && str_comp(pItemName, IServerBrowser::COMMUNITY_TYPE_NONE) == 0)))
+ 							Filter.Add(pItemName);
+ 					}
+@@ -932,7 +939,7 @@ void CMenus::RenderServerbrowserDDNetFilter(CUIRect View,
+ 				{
+ 					if(const char *pItemName = GetItemName(j);
+ 						j != ItemIndex && !Filter.Filtered(pItemName) &&
+-						!((&Filter == &ServerBrowser()->CountriesFilter() && str_comp(pItemName, IServerBrowser::COMMUNITY_COUNTRY_NONE) == 0) ||
++						!((&Filter == &ServerBrowser()->CountriesFilter() && NoneCommunitySelected && str_comp(pItemName, IServerBrowser::COMMUNITY_COUNTRY_NONE) == 0) ||
+ 							(&Filter == &ServerBrowser()->TypesFilter() && str_comp(pItemName, IServerBrowser::COMMUNITY_TYPE_NONE) == 0)))
+ 					{
+ 						AllFilteredExceptUs = false;
+-- 
+2.43.0
+

@@ -1,0 +1,179 @@
+From 71ac33691fb38474d42143302027783f8259ad52 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 09:52:24 +0000
+Subject: [PATCH] Fix worker thread output in rcon and econ waiting for next
+ log line
+
+Log lines written by threads other than the main thread, for example
+the output of `dump_sqlservers` or errors from the database worker
+thread, only appeared in the remote console and econ once some
+unrelated log line was written on the main thread. On a quiet server
+the output of such a command seemed to be missing, which made it hard
+to connect errors to the command that caused them.
+
+Since fa4bcd5ec ("Unify logging infrastructure between `IConsole` and
+`dbg_msg`"), `CServerLogger` queues messages from other threads because
+sending to rcon and econ is not thread-safe, but the queue was only
+emptied by the next `Log` call on the main thread.
+
+Add `CServerLogger::Flush`, let the server keep a reference to its
+logger and flush the queue once per server loop iteration, before
+waiting for network data. Queued lines now arrive within the next tick,
+or within one second on an empty server, in the same order as before.
+
+Closes #9843.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/engine/server/main.cpp          |  1 +
+ src/engine/server/server.cpp        | 10 +++++++++
+ src/engine/server/server.h          |  3 +++
+ src/engine/server/server_logger.cpp | 33 +++++++++++++++++------------
+ src/engine/server/server_logger.h   |  2 ++
+ 5 files changed, 36 insertions(+), 13 deletions(-)
+
+diff --git a/src/engine/server/main.cpp b/src/engine/server/main.cpp
+index e74ef1618..79e39dee8 100644
+--- a/src/engine/server/main.cpp
++++ b/src/engine/server/main.cpp
+@@ -215,6 +215,7 @@ int main(int argc, const char **argv)
+ 
+ 	auto pServerLogger = std::make_shared<CServerLogger>(pServer);
+ 	pEngine->SetAdditionalLogger(pServerLogger);
++	pServer->SetServerLogger(pServerLogger);
+ 
+ 	// run the server
+ 	log_trace("server", "initialization finished after %.2fms, starting...", (time_get() - MainStart) * 1000.0f / (float)time_freq());
+diff --git a/src/engine/server/server.cpp b/src/engine/server/server.cpp
+index bd5e7bc22..b6eff0c12 100644
+--- a/src/engine/server/server.cpp
++++ b/src/engine/server/server.cpp
+@@ -6,6 +6,7 @@
+ #include "databases/connection.h"
+ #include "databases/connection_pool.h"
+ #include "register.h"
++#include "server_logger.h"
+ 
+ #include <base/bytes.h>
+ #include <base/fs.h>
+@@ -3708,6 +3709,10 @@ int CServer::Run()
+ 				m_ReloadedWhenEmpty = false;
+ 			}
+ 
++			// send log lines from other threads to rcon and econ
++			if(m_pServerLogger)
++				m_pServerLogger->Flush();
++
+ 			// wait for incoming data
+ 			if(NonActive && Config()->m_SvShutdownWhenEmpty)
+ 			{
+@@ -4948,3 +4953,8 @@ void CServer::SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr
+ 	m_pFileLogger = pFileLogger;
+ 	m_pStdoutLogger = pStdoutLogger;
+ }
++
++void CServer::SetServerLogger(std::shared_ptr<CServerLogger> pServerLogger)
++{
++	m_pServerLogger = std::move(pServerLogger);
++}
+diff --git a/src/engine/server/server.h b/src/engine/server/server.h
+index 5844866ed..b60fd3e1e 100644
+--- a/src/engine/server/server.h
++++ b/src/engine/server/server.h
+@@ -34,6 +34,7 @@ class CHostLookup;
+ class CLogMessage;
+ class CMsgPacker;
+ class CPacker;
++class CServerLogger;
+ class IEngine;
+ class IEngineHttp;
+ class ILogger;
+@@ -293,6 +294,7 @@ public:
+ 
+ 	std::shared_ptr<ILogger> m_pFileLogger = nullptr;
+ 	std::shared_ptr<ILogger> m_pStdoutLogger = nullptr;
++	std::shared_ptr<CServerLogger> m_pServerLogger = nullptr;
+ 
+ 	CServer();
+ 	~CServer() override;
+@@ -553,6 +555,7 @@ public:
+ 	bool ClientSupportsServerMaxClients(int ClientId) const override;
+ 
+ 	void SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr<ILogger> &&pStdoutLogger);
++	void SetServerLogger(std::shared_ptr<CServerLogger> pServerLogger);
+ 
+ #ifdef CONF_FAMILY_UNIX
+ 	enum CONN_LOGGING_CMD
+diff --git a/src/engine/server/server_logger.cpp b/src/engine/server/server_logger.cpp
+index 2d0e2d15a..b320b8823 100644
+--- a/src/engine/server/server_logger.cpp
++++ b/src/engine/server/server_logger.cpp
+@@ -15,31 +15,38 @@ void CServerLogger::Log(const CLogMessage *pMessage)
+ 	{
+ 		return;
+ 	}
+-	m_PendingLock.lock();
+ 	if(m_MainThread == std::this_thread::get_id())
+ 	{
+-		if(!m_vPending.empty())
+-		{
+-			if(m_pServer)
+-			{
+-				for(const auto &Message : m_vPending)
+-				{
+-					m_pServer->SendLogLine(&Message);
+-				}
+-			}
+-			m_vPending.clear();
+-		}
+-		m_PendingLock.unlock();
++		Flush();
+ 		if(m_pServer)
+ 			m_pServer->SendLogLine(pMessage);
+ 	}
+ 	else
+ 	{
++		m_PendingLock.lock();
+ 		m_vPending.push_back(*pMessage);
+ 		m_PendingLock.unlock();
+ 	}
+ }
+ 
++void CServerLogger::Flush()
++{
++	dbg_assert(m_MainThread == std::this_thread::get_id(), "CServerLogger::Flush not called from the main thread");
++	m_PendingLock.lock();
++	if(!m_vPending.empty())
++	{
++		if(m_pServer)
++		{
++			for(const auto &Message : m_vPending)
++			{
++				m_pServer->SendLogLine(&Message);
++			}
++		}
++		m_vPending.clear();
++	}
++	m_PendingLock.unlock();
++}
++
+ void CServerLogger::OnServerDeletion()
+ {
+ 	dbg_assert(m_MainThread == std::this_thread::get_id(), "CServerLogger::OnServerDeletion not called from the main thread");
+diff --git a/src/engine/server/server_logger.h b/src/engine/server/server_logger.h
+index 18c5d9f5a..7d04d1565 100644
+--- a/src/engine/server/server_logger.h
++++ b/src/engine/server/server_logger.h
+@@ -17,6 +17,8 @@ public:
+ 	CServerLogger(CServer *pServer);
+ 	void Log(const CLogMessage *pMessage) override REQUIRES(!m_PendingLock);
+ 	// Must be called from the main thread!
++	void Flush() REQUIRES(!m_PendingLock);
++	// Must be called from the main thread!
+ 	void OnServerDeletion();
+ };
+ 
+-- 
+2.43.0
+

@@ -1,0 +1,75 @@
+From b836dfe2d93f91c4d1663c47d89f24d089a163a3 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 10:10:24 +0000
+Subject: [PATCH] Fix rank overlapping the tee in the bottom right score HUD
+
+In the small score HUD in the bottom right, ranks with two or more
+digits (e.g. "21.") touched or were covered by the player's tee, most
+visibly with skins whose body fills the whole sprite. Ranks with three
+digits overlapped even the default skin.
+
+The rank column has a fixed width of 16 units, and "21." is already
+about as wide as that. The tee is rendered 18 units wide, 2 units wider
+than the ImageSize reserved for it, so it reaches into the rank column.
+
+Measure the rank texts when they change and widen the rank column, and
+with it both boxes, so that the widest rank ends 3 units (Split) before
+the tee. As long as both ranks have a single digit, they fit into the
+old width and the layout is unchanged.
+
+Closes #11504.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/client/components/hud.cpp | 8 +++++++-
+ src/game/client/components/hud.h   | 2 ++
+ 2 files changed, 9 insertions(+), 1 deletion(-)
+
+diff --git a/src/game/client/components/hud.cpp b/src/game/client/components/hud.cpp
+index 306ce0765..e74c64154 100644
+--- a/src/game/client/components/hud.cpp
++++ b/src/game/client/components/hud.cpp
+@@ -409,12 +409,18 @@ void CHud::RenderScoreHud()
+ 				char aBuf[16];
+ 				str_format(aBuf, sizeof(aBuf), "%d.", aPos[t]);
+ 				if(str_comp(aBuf, m_aScoreInfo[t].m_aRankText) != 0)
++				{
++					m_aScoreInfo[t].m_RankTextWidth = TextRender()->TextWidth(10.0f, aBuf);
+ 					RecreateRect = true;
++				}
+ 			}
+ 
+ 			static float s_TextWidth10 = TextRender()->TextWidth(14.0f, "10", -1, -1.0f);
+ 			float ScoreWidthMax = std::max({m_aScoreInfo[0].m_ScoreTextWidth, m_aScoreInfo[1].m_ScoreTextWidth, s_TextWidth10});
+-			float Split = 3.0f, ImageSize = 16.0f, PosSize = 16.0f;
++			float Split = 3.0f, ImageSize = 16.0f;
++			// keep a Split gap between the widest rank and the tee, which is drawn ScoreSingleBoxHeight wide
++			float RankWidthMax = std::max(m_aScoreInfo[0].m_RankTextWidth, m_aScoreInfo[1].m_RankTextWidth);
++			float PosSize = std::max(16.0f, RankWidthMax + (ScoreSingleBoxHeight - ImageSize) + Split);
+ 
+ 			for(int t = 0; t < 2; t++)
+ 			{
+diff --git a/src/game/client/components/hud.h b/src/game/client/components/hud.h
+index 3f4d10806..e326d71f3 100644
+--- a/src/game/client/components/hud.h
++++ b/src/game/client/components/hud.h
+@@ -27,6 +27,7 @@ struct SScoreInfo
+ 		m_aRankText[0] = 0;
+ 		m_aPlayerNameText[0] = 0;
+ 		m_ScoreTextWidth = 0.f;
++		m_RankTextWidth = 0.f;
+ 		m_Initialized = false;
+ 	}
+ 
+@@ -34,6 +35,7 @@ struct SScoreInfo
+ 	STextContainerIndex m_TextScoreContainerIndex;
+ 	float m_ScoreTextWidth;
+ 	char m_aScoreText[16];
++	float m_RankTextWidth;
+ 	char m_aRankText[16];
+ 	char m_aPlayerNameText[MAX_NAME_LENGTH];
+ 	int m_RoundRectQuadContainerIndex;
+-- 
+2.43.0
+

@@ -1,0 +1,77 @@
+From 56f694e3d91d2597e6094b71e58ffc292e8a61d0 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 10:07:13 +0000
+Subject: [PATCH] Fix editor brush locking up when opening a dialog while
+ drawing
+
+Opening the file browser with Ctrl+S or the quick prompt with Ctrl+P
+while holding the left mouse button to draw, grab or fill with the
+brush made the brush unusable after the dialog was closed: left click
+neither drew tiles nor created a new brush anymore, until the map view
+was panned with the middle mouse button.
+
+Opening these dialogs makes their text input the active UI item. The
+map view only finished its brush operation when it was still the
+active item while the mouse was released, so the operation stayed set
+forever and no new brush operation could be started, which requires
+that no operation is active. The tiles drawn before opening the dialog
+were also not recorded in the undo history as their own step. The
+save dialog's filename input has taken the active item on opening
+since 36a6b3903, the load dialog's search input since c0f8ad50d and
+the prompt's input since it was added in f053a2946.
+
+Also finish brush operations when another UI element has become the
+active item. An interrupted stroke is recorded as its own undo step, an
+interrupted grab or fill is discarded. The active item is left to the
+element that took it.
+
+Closes #10697.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/editor/map_view.cpp | 23 ++++++++++++-----------
+ 1 file changed, 12 insertions(+), 11 deletions(-)
+
+diff --git a/src/game/editor/map_view.cpp b/src/game/editor/map_view.cpp
+index 0e6912615..db88ee7f7 100644
+--- a/src/game/editor/map_view.cpp
++++ b/src/game/editor/map_view.cpp
+@@ -661,22 +661,23 @@ void CMapView::Render(CUIRect View)
+ 		}
+ 	}
+ 
+-	if(Ui()->CheckActiveItem(Editor()->MapView()) && Editor()->m_pContainerPanned == nullptr)
++	const EActiveOp ActiveOp = Map()->m_MapViewState.m_ActiveOp;
++	const bool MouseReleased = Ui()->CheckActiveItem(Editor()->MapView()) && Editor()->m_pContainerPanned == nullptr && !Ui()->MouseButton(0);
++	// Another UI element can become active during a brush operation, e.g. when opening a dialog with a hotkey while drawing
++	const bool BrushOpInterrupted = (ActiveOp == EActiveOp::BRUSH_GRAB || ActiveOp == EActiveOp::BRUSH_DRAW || ActiveOp == EActiveOp::BRUSH_PAINT) && Ui()->ActiveItem() != Editor()->MapView();
++	if(MouseReleased || BrushOpInterrupted)
+ 	{
+-		// release mouse
+-		if(!Ui()->MouseButton(0))
++		if(ActiveOp == EActiveOp::BRUSH_DRAW)
+ 		{
+-			if(Map()->m_MapViewState.m_ActiveOp == EActiveOp::BRUSH_DRAW)
+-			{
+-				std::shared_ptr<IEditorAction> pAction = std::make_shared<CEditorBrushDrawAction>(Map(), Map()->m_SelectedGroup);
++			std::shared_ptr<IEditorAction> pAction = std::make_shared<CEditorBrushDrawAction>(Map(), Map()->m_SelectedGroup);
+ 
+-				if(!pAction->IsEmpty()) // Avoid recording tile draw action when placing quads only
+-					Map()->m_EditorHistory.RecordAction(pAction);
+-			}
++			if(!pAction->IsEmpty()) // Avoid recording tile draw action when placing quads only
++				Map()->m_EditorHistory.RecordAction(pAction);
++		}
+ 
+-			Map()->m_MapViewState.m_ActiveOp = EActiveOp::NONE;
++		Map()->m_MapViewState.m_ActiveOp = EActiveOp::NONE;
++		if(MouseReleased)
+ 			Ui()->SetActiveItem(nullptr);
+-		}
+ 	}
+ 
+ 	if(!Editor()->m_ShowPicker && Map()->SelectedGroup() && Map()->SelectedGroup()->m_UseClipping)
+-- 
+2.43.0
+

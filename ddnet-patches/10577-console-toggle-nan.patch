@@ -1,0 +1,69 @@
+From 9ff9230812c09e73ec11e6d10f09cb3393388518 Mon Sep 17 00:00:00 2001
+From: wranked1 <wranked.1@gmail.com>
+Date: Thu, 24 Sep 2026 09:56:44 +0000
+Subject: [PATCH] Fix invalid console height when toggling the console quickly
+
+Toggling the console again after its opening or closing animation had
+ended, but before a frame was rendered (e.g. when gfx_refresh_rate is
+lower than cl_refresh_rate), could make the console render with a NaN
+height. Converting it to int for the clipping area and the backlog line
+count caused the signed integer overflows reported by UBSan.
+
+Toggle() reverses a running transition using the remaining time
+`m_StateChangeEnd - GlobalTime()` without considering that the
+transition may have already ended. The negative remaining time moved
+the start of the new transition into the future, so OnRender() computed
+a negative progress. ConsoleScaleFunc, which is only defined for
+0 <= t <= 1, then returned NaN when opening, and when closing if the
+progress was below -1.
+
+Clamp the remaining time to [0, duration], so reversing an already
+finished transition starts a full transition, like toggling a closed or
+open console. Also clamp the progress in OnRender() to [0, 1], because
+float rounding of `m_StateChangeEnd - m_StateChangeDuration` can make
+it slightly negative in the frame in which the console is opened.
+
+Closes #10577.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01E3rsC3FRVop9j9KaM9zRGS
+---
+ src/game/client/components/console.cpp | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/game/client/components/console.cpp b/src/game/client/components/console.cpp
+index 77e21c6f6..cb5e1cfa3 100644
+--- a/src/game/client/components/console.cpp
++++ b/src/game/client/components/console.cpp
+@@ -1164,7 +1164,7 @@ void CGameConsole::OnRender()
+ 	CInstance *pConsole = CurrentConsole();
+ 
+ 	const float MaxConsoleHeight = Screen.h * 3 / 5.0f;
+-	float Progress = (Client()->GlobalTime() - (m_StateChangeEnd - m_StateChangeDuration)) / m_StateChangeDuration;
++	const float Progress = std::clamp((Client()->GlobalTime() - (m_StateChangeEnd - m_StateChangeDuration)) / m_StateChangeDuration, 0.0f, 1.0f);
+ 
+ 	if(Progress >= 1.0f)
+ 	{
+@@ -1178,8 +1178,6 @@ void CGameConsole::OnRender()
+ 			m_ConsoleState = CONSOLE_OPEN;
+ 			pConsole->m_Input.Activate(EInputPriority::CONSOLE);
+ 		}
+-
+-		Progress = 1.0f;
+ 	}
+ 
+ 	if(m_ConsoleState == CONSOLE_OPEN && g_Config.m_ClEditor)
+@@ -1679,7 +1677,9 @@ void CGameConsole::Toggle(int Type)
+ 		}
+ 		else
+ 		{
+-			float Progress = m_StateChangeEnd - Client()->GlobalTime();
++			// The transition may already have ended without a frame being rendered to update
++			// the state. Start the reversed transition from the beginning in that case.
++			float Progress = std::clamp(m_StateChangeEnd - Client()->GlobalTime(), 0.0f, m_StateChangeDuration);
+ 			float ReversedProgress = m_StateChangeDuration - Progress;
+ 
+ 			m_StateChangeEnd = Client()->GlobalTime() + ReversedProgress;
+-- 
+2.43.0
+
